@@ -1,5 +1,9 @@
 package main
 
+import analysis "github.com/yigittopm/padding0/internal"
+
 func main() {
-	println("Memory alignment padding")
+	if err := analysis.Start(); err != nil {
+		panic(err)
+	}
 }
