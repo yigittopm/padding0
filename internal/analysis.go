@@ -1,6 +1,7 @@
 package analysis
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -12,11 +13,25 @@ import (
 )
 
 func Start() error {
-	getFiles()
+	dirFlag := flag.String("d", "", "Directory to search for .go files")
+	flag.Parse()
+
+	var dir string
+	if *dirFlag == "" {
+		var err error
+		dir, err = os.Getwd()
+		if err != nil {
+			log.Fatalf("Dir not found: %v", err)
+		}
+	} else {
+		dir = *dirFlag
+	}
+	println(dir)
+	getFiles(dir)
 	return nil
 }
 
-func getFiles() {
+func getFiles(dir string) {
 	var wg sync.WaitGroup
 	dir, err := os.Getwd()
 	if err != nil {
@@ -29,8 +44,8 @@ func getFiles() {
 		}
 
 		if !info.IsDir() && strings.HasSuffix(info.Name(), ".go") {
+			wg.Add(1)
 			go func() {
-				wg.Add(1)
 				defer wg.Done()
 				readFile(path)
 			}()
@@ -99,7 +114,8 @@ func ProcessStruct(match []string) string {
 			continue
 		}
 
-		parts := regexp.MustCompile(`(\w+)\s+(\w+)\s*(//.*)?`).FindStringSubmatch(line)
+		//parts := regexp.MustCompile(`(\w+)\s+(\w+)\s*(//.*)?`).FindStringSubmatch(line)
+		parts := regexp.MustCompile(`(\w+)\s+(\*?\w+(?:\.\w+)?)(\s*//.*)?`).FindStringSubmatch(line)
 		if len(parts) > 2 {
 			fieldName := parts[1]
 			fieldType := parts[2]
@@ -128,6 +144,6 @@ func ProcessStruct(match []string) string {
 		sb.WriteString(fmt.Sprintf("\t\t%s %s %s\n", field.Name, field.Type, field.Comment))
 	}
 	sb.WriteString("\t}")
-
+	println(sb.String())
 	return sb.String()
 }
