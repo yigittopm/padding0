@@ -114,8 +114,7 @@ func ProcessStruct(match []string) string {
 			continue
 		}
 
-		//parts := regexp.MustCompile(`(\w+)\s+(\w+)\s*(//.*)?`).FindStringSubmatch(line)
-		parts := regexp.MustCompile(`(\w+)\s+(\*?\w+(?:\.\w+)?)(\s*//.*)?`).FindStringSubmatch(line)
+		parts := regexp.MustCompile(`(\w+)\s+(\w+)\s*(//.*)?`).FindStringSubmatch(line)
 		if len(parts) > 2 {
 			fieldName := parts[1]
 			fieldType := parts[2]
