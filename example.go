@@ -1,4 +1,4 @@
-package padding0
+package main
 
 func AFunc() {
 	println("A")
