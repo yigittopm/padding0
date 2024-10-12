@@ -26,7 +26,7 @@ func Start() error {
 	} else {
 		dir = *dirFlag
 	}
-	println(dir)
+
 	getFiles(dir)
 	return nil
 }
@@ -143,6 +143,5 @@ func ProcessStruct(match []string) string {
 		sb.WriteString(fmt.Sprintf("\t\t%s %s %s\n", field.Name, field.Type, field.Comment))
 	}
 	sb.WriteString("\t}")
-	println(sb.String())
 	return sb.String()
 }
