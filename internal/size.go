@@ -1,3 +1,6 @@
+/*
+Copyright © 2024 Mert Yiğittop <yigittopm@hotmail.com>
+*/
 package analysis
 
 var typeSizes = map[string]int{
