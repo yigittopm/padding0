@@ -19,8 +19,25 @@ Bu repo, aşağıdaki özellikleri sunar:
 Kendi projelerinizde bellek optimizasyonu yapmanıza yardımcı olmak için geliştirilmiştir. Hem küçük projelerde hem de büyük çaplı sistemlerde faydalı olabilir.
 
 
-### Örnek Kullanım
+### Kurulum
 
+```bash
+    go install github.com/yigttopm/padding0@latest
+```
+
+Çalıştığınız Go projenizin kök dizinine gidin ve aşağıdaki komutu çalıştırın:
+
+```bash
+    padding0
+```
+
+ya da projenizin yolunu belirterek çalıştırabilirsiniz:
+
+```bash
+    padding0 -d="path/to/your/project"
+```
+
+### Örnek
 Projenizde kullandığınız örnek bir struct:
 ```go
 package main

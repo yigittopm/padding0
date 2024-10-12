@@ -29,7 +29,7 @@ func Start() error {
 	} else {
 		dir = *dirFlag
 	}
-	println(dir)
+
 	getFiles(dir)
 	return nil
 }
