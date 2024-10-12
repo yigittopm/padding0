@@ -1,5 +1,5 @@
 run: build
-	@./bin/app
+	@./bin/padding0
 
 build:
 	@go build -o bin/padding0 ./main.go
