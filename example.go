@@ -1,9 +1,5 @@
 package main
 
-func AFunc() {
-	println("A")
-}
-
 type A struct {
 	A byte  // AA Comment
 	B int32 // AB Comment
@@ -12,6 +8,12 @@ type A struct {
 	E byte  // AE Comment
 }
 
-func BFunc() {
-	println("B")
+type X byte
+
+type B struct {
+	BA X     // BAA Comment
+	BB int32 // BAB Comment
+	BC X     // BAC Comment
+	BD int64 // BAD Comment
+	BE X     // BAE Comment
 }
