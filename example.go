@@ -17,3 +17,16 @@ type B struct {
 	BD int64 // BAD Comment
 	BE X     // BAE Comment
 }
+
+type C struct {
+	CA X     // CAA Comment
+	CB int32 // CAB Comment
+	CC struct {
+		C1 X     // CCAA Comment
+		C2 int32 // CCAB Comment
+		C3 X     // CCAC Comment
+		C4 int64 // CCAD Comment
+	}
+	CD X   // CAD Comment
+	CE int // CAE Comment
+}
