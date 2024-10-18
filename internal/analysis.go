@@ -30,15 +30,18 @@ func Start() error {
 		dir = *dirFlag
 	}
 
-	getFiles(dir)
+	if err := getFiles(dir); err != nil {
+		return err
+	}
+
 	return nil
 }
 
-func getFiles(dir string) {
+func getFiles(dir string) error {
 	var wg sync.WaitGroup
 	dir, err := os.Getwd()
 	if err != nil {
-		log.Fatalf("Dir not found: %v", err)
+		return err
 	}
 
 	err = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
@@ -46,7 +49,7 @@ func getFiles(dir string) {
 			return err
 		}
 
-		if !info.IsDir() && strings.HasSuffix(info.Name(), ".go") {
+		if !info.IsDir() && strings.HasSuffix(info.Name(), "example.go") {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
@@ -58,30 +61,39 @@ func getFiles(dir string) {
 	})
 
 	if err != nil {
-		log.Fatalf("Error walking the path: %v", err)
+		return err
 	}
 
 	wg.Wait()
+	return nil
 }
 
-func readFile(path string) {
+func readFile(path string) error {
 	file, err := os.ReadFile(path)
 	if err != nil {
 		if err.Error() != "EOF" {
 			log.Fatalf("Error opening file: %v", err)
 		}
+		return nil
 	}
 
 	modifiedContent := ExtractStruct(string(file))
-	writeFile(path, modifiedContent)
+	err = writeFile(path, modifiedContent)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
-func writeFile(path string, content string) {
+func writeFile(path string, content string) error {
 	content = strings.TrimSpace(content)
 	err := os.WriteFile(path, []byte(content), 0644)
 	if err != nil {
-		log.Fatalf("Error writing file: %v", err)
+		return err
 	}
+
+	return nil
 }
 
 func ExtractStruct(content string) string {
