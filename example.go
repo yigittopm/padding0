@@ -8,10 +8,11 @@ type A struct {
 	E byte  // AE Comment
 }
 
-type X int64
-type Y byte
+type X byte
+type Y int64
 
 type B struct {
+	BI X     // BIA Comment
 	BA Y     // BAA Comment
 	BB int32 // BAB Comment
 	BC byte  // BAC Comment
