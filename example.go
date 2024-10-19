@@ -12,11 +12,12 @@ type X int64
 type Y byte
 
 type B struct {
-	BA X     // BAA Comment
+	BA Y     // BAA Comment
 	BB int32 // BAB Comment
-	BC X     // BAC Comment
-	BD int64 // BAD Comment
-	BE X     // BAE Comment
+	BC byte  // BAC Comment
+	BD X     // BAD Comment
+	BE Y     // BAE Comment
+	BF int64 // BAF Comment
 }
 
 type C struct {
