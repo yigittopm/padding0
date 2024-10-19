@@ -1,27 +1,10 @@
 package main
 
-type A struct {
-	A byte  // AA Comment
-	B int32 // AB Comment
-	C byte  // AC Comment
-	D int64 // AD Comment
-	E byte  // AE Comment
-}
-
 type X byte
 type Y int64
 
-type B struct {
-	BI X     // BIA Comment
-	BA Y     // BAA Comment
-	BB int32 // BAB Comment
-	BC byte  // BAC Comment
-	BD X     // BAD Comment
-	BE Y     // BAE Comment
-	BF int64 // BAF Comment
-}
-
 type C struct {
+	XC X     // CX Comment
 	CA X     // CAA Comment
 	CB int32 // CAB Comment
 	CC struct {
@@ -31,5 +14,6 @@ type C struct {
 		C4 int64 // CCAD Comment
 	}
 	CD X   // CAD Comment
+	DF Y   // CDF Comment
 	CE int // CAE Comment
 }
