@@ -5,11 +5,14 @@ package analysis
 
 import (
 	"flag"
-	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/printer"
+	"go/token"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -77,7 +80,11 @@ func readFile(path string) error {
 		return nil
 	}
 
-	modifiedContent := ExtractStruct(string(file))
+	modifiedContent, err := tokenizeStructFields(string(file))
+	if err != nil {
+		return err
+	}
+
 	err = writeFile(path, modifiedContent)
 	if err != nil {
 		return err
@@ -93,70 +100,115 @@ func writeFile(path string, content string) error {
 		return err
 	}
 
+	err = formatTheWrittenFile(path)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
-func ExtractStruct(content string) string {
-	re := regexp.MustCompile(`type\s+(\w+)\s+struct\s*{([^}]*)}`)
-	matches := re.FindAllStringSubmatch(content, -1)
-
-	for _, match := range matches {
-		if len(match) > 1 {
-
-			original := match[0]
-			modified := ProcessStruct(match)
-			content = strings.Replace(content, original, modified, 1)
-		}
-	}
-	return content
-}
-
-type Field struct {
-	Name    string
-	Type    string
-	Comment string
-	Size    int
-}
-
-func ProcessStruct(match []string) string {
-	structName := match[1]
-	structBody := match[2]
-	lines := strings.Split(structBody, "\n")
-
-	var fields []Field
-	for _, line := range lines {
-		if strings.TrimSpace(line) == "" {
-			continue
-		}
-
-		parts := regexp.MustCompile(`(\w+)\s+(\w+)\s*(//.*)?`).FindStringSubmatch(line)
-		if len(parts) > 2 {
-			fieldName := parts[1]
-			fieldType := parts[2]
-			fieldComment := ""
-			if len(parts) > 3 {
-				fieldComment = parts[3]
-			}
-
-			fields = append(fields, Field{
-				Name:    fieldName,
-				Type:    fieldType,
-				Comment: fieldComment,
-				Size:    typeSizes[fieldType],
-			})
-		}
-
+func formatTheWrittenFile(path string) error {
+	cmd := exec.Command("gofmt", "-w", path)
+	err := cmd.Run()
+	if err != nil {
+		return err
 	}
 
-	sort.Slice(fields, func(i, j int) bool {
-		return fields[i].Size > fields[j].Size
+	return nil
+}
+
+var structDefinitions = make(map[string]*ast.StructType)
+
+func tokenizeStructFields(content string) (string, error) {
+	fset := token.NewFileSet()
+	node, err := parser.ParseFile(fset, "", content, parser.AllErrors)
+	if err != nil {
+		return content, err
+	}
+
+	ast.Inspect(node, func(n ast.Node) bool {
+		ts, ok := n.(*ast.TypeSpec)
+		if !ok {
+			return true
+		}
+
+		if structType, ok := ts.Type.(*ast.StructType); ok {
+			structDefinitions[ts.Name.Name] = structType
+		} else {
+			typeSizes[ts.Name.Name] = typeSizes[ts.Type.(*ast.Ident).Name]
+		}
+
+		return true
 	})
 
-	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("type %s struct {\n", structName))
-	for _, field := range fields {
-		sb.WriteString(fmt.Sprintf("\t\t%s %s %s\n", field.Name, field.Type, field.Comment))
+	ast.Inspect(node, func(n ast.Node) bool {
+		ts, ok := n.(*ast.TypeSpec)
+		if !ok {
+			return true
+		}
+
+		structType, ok := ts.Type.(*ast.StructType)
+		if !ok {
+			return true
+		}
+
+		sortFieldsBySize(structType)
+
+		return false
+	})
+
+	formattedContent := new(strings.Builder)
+	err = printer.Fprint(formattedContent, fset, node)
+	if err != nil {
+		return content, err
 	}
-	sb.WriteString("\t}")
-	return sb.String()
+
+	return formattedContent.String(), nil
+}
+
+func sortFieldsBySize(structType *ast.StructType) {
+	fields := structType.Fields.List
+
+	sort.Slice(fields, func(i, j int) bool {
+		sizeI := getSizeOfType(fields[i])
+		sizeJ := getSizeOfType(fields[j])
+
+		return sizeI > sizeJ
+	})
+
+	for _, field := range fields {
+		switch typ := field.Type.(type) {
+		case *ast.Ident:
+			if innerStruct, found := structDefinitions[typ.Name]; found {
+				sortFieldsBySize(innerStruct)
+			}
+		case *ast.StructType:
+			sortFieldsBySize(typ)
+		}
+	}
+}
+
+func getSizeOfType(field *ast.Field) int {
+	switch expr := field.Type.(type) {
+	case *ast.Ident:
+		if size, ok := typeSizes[expr.Name]; ok {
+			return size
+		} else if structType, ok := structDefinitions[expr.Name]; ok {
+			return calculateStructSize(structType)
+		} else {
+			return typeSizes[expr.Name]
+		}
+	case *ast.StructType:
+		return calculateStructSize(expr)
+	}
+	return 0
+}
+
+func calculateStructSize(structType *ast.StructType) int {
+	totalSize := 0
+	for _, field := range structType.Fields.List {
+		totalSize += getSizeOfType(field)
+	}
+	return totalSize
 }
