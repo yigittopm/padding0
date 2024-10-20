@@ -16,4 +16,8 @@ type C struct {
 	CD X   // CAD Comment
 	DF Y   // CDF Comment
 	CE int // CAE Comment
+	XX map[string]struct {
+		YY int      // CXXYY Comment
+		ST []string // ST Comment
+	}
 }
