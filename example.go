@@ -1,23 +1,23 @@
 package main
 
-type X byte
-type Y int64
+type X byte  // X is a byte
+type Y int64 // Y is an int64
 
 type C struct {
-	XC X     // CX Comment
-	CA X     // CAA Comment
-	CB int32 // CAB Comment
-	CC struct {
-		C1 X     // CCAA Comment
-		C2 int32 // CCAB Comment
-		C3 X     // CCAC Comment
-		C4 int64 // CCAD Comment
+	C1 X     // C1
+	C2 X     // C2
+	C3 int32 // C3
+	C4 struct {
+		C5 X     // C5
+		C6 int32 // C6
+		C7 X     // C7
+		C8 int64 // C8
 	}
-	CD X   // CAD Comment
-	DF Y   // CDF Comment
-	CE int // CAE Comment
-	XX map[string]struct {
-		YY int      // CXXYY Comment
-		ST []string // ST Comment
+	C9  X   // C9
+	C10 Y   // C10
+	C11 int // C11
+	C12 map[string]struct {
+		C13 int      // C13
+		C14 []string // C14
 	}
 }
