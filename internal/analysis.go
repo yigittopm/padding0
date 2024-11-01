@@ -1,10 +1,8 @@
-/*
-Copyright © 2024 Mert Yiğittop <yigittopm@hotmail.com>
-*/
 package analysis
 
 import (
 	"flag"
+	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/printer"
@@ -13,10 +11,18 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
 )
+
+type FieldWithComments struct {
+	Names   []*ast.Ident
+	Field   *ast.Field
+	Doc     *ast.CommentGroup
+	Comment *ast.CommentGroup
+}
 
 func Start() error {
 	dirFlag := flag.String("d", "", "Directory to search for .go files")
@@ -42,17 +48,12 @@ func Start() error {
 
 func getFiles(dir string) error {
 	var wg sync.WaitGroup
-	dir, err := os.Getwd()
-	if err != nil {
-		return err
-	}
-
-	err = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
 
-		if !info.IsDir() && strings.HasSuffix(info.Name(), "example.go") {
+		if !info.IsDir() && strings.HasSuffix(info.Name(), ".go") && !strings.HasSuffix(info.Name(), "_test.go") {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
@@ -80,7 +81,7 @@ func readFile(path string) error {
 		return nil
 	}
 
-	modifiedContent, err := tokenizeStructFields(string(file))
+	modifiedContent, err := TokenizeStructFields(string(file))
 	if err != nil {
 		return err
 	}
@@ -118,11 +119,26 @@ func formatTheWrittenFile(path string) error {
 	return nil
 }
 
+func ExtractStruct(content string) string {
+	re := regexp.MustCompile(`type\s+(\w+)\s+struct\s*{([^}]*)}`)
+	matches := re.FindAllStringSubmatch(content, -1)
+
+	for _, match := range matches {
+		if len(match) > 1 {
+			original := match[0]
+			modified, _ := TokenizeStructFields(match[0])
+			content = strings.Replace(content, original, modified, 1)
+		}
+	}
+	return content
+}
+
 var structDefinitions = make(map[string]*ast.StructType)
 
-func tokenizeStructFields(content string) (string, error) {
-	fset := token.NewFileSet()
-	node, err := parser.ParseFile(fset, "", content, parser.AllErrors)
+func TokenizeStructFields(content string) (string, error) {
+	fileSet := token.NewFileSet()
+
+	node, err := parser.ParseFile(fileSet, "", content, parser.ParseComments)
 	if err != nil {
 		return content, err
 	}
@@ -153,13 +169,17 @@ func tokenizeStructFields(content string) (string, error) {
 			return true
 		}
 
-		sortFieldsBySize(structType)
+		sortedField := sortFieldsBySize(structType)
+
+		for _, field := range sortedField {
+			fmt.Println(field.Names, field.Comment.Text())
+		}
 
 		return false
 	})
 
 	formattedContent := new(strings.Builder)
-	err = printer.Fprint(formattedContent, fset, node)
+	err = printer.Fprint(formattedContent, fileSet, node)
 	if err != nil {
 		return content, err
 	}
@@ -167,18 +187,39 @@ func tokenizeStructFields(content string) (string, error) {
 	return formattedContent.String(), nil
 }
 
-func sortFieldsBySize(structType *ast.StructType) {
+func sortFieldsBySize(structType *ast.StructType) []*FieldWithComments {
 	fields := structType.Fields.List
 
-	sort.Slice(fields, func(i, j int) bool {
-		sizeI := getSizeOfType(fields[i])
-		sizeJ := getSizeOfType(fields[j])
+	fieldsWithComments := make([]*FieldWithComments, len(fields))
+	for i, field := range fields {
+		fieldsWithComments[i] = &FieldWithComments{
+			Names:   field.Names,
+			Field:   field,
+			Doc:     field.Doc,
+			Comment: field.Comment,
+		}
+	}
+
+	sort.SliceStable(fieldsWithComments, func(i, j int) bool {
+		sizeI := getSizeOfType(fieldsWithComments[i].Field)
+		sizeJ := getSizeOfType(fieldsWithComments[j].Field)
 
 		return sizeI > sizeJ
 	})
 
-	for _, field := range fields {
-		switch typ := field.Type.(type) {
+	sortedFields := make([]*ast.Field, len(fieldsWithComments))
+
+	for i, sortedField := range fieldsWithComments {
+		sortedFields[i] = sortedField.Field
+
+		sortedFields[i].Doc = sortedField.Doc
+		sortedFields[i].Comment = sortedField.Comment
+	}
+
+	structType.Fields.List = sortedFields
+
+	for _, field := range fieldsWithComments {
+		switch typ := field.Field.Type.(type) {
 		case *ast.Ident:
 			if innerStruct, found := structDefinitions[typ.Name]; found {
 				sortFieldsBySize(innerStruct)
@@ -187,6 +228,8 @@ func sortFieldsBySize(structType *ast.StructType) {
 			sortFieldsBySize(typ)
 		}
 	}
+
+	return fieldsWithComments
 }
 
 func getSizeOfType(field *ast.Field) int {
