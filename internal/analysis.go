@@ -11,7 +11,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -119,19 +118,21 @@ func formatTheWrittenFile(path string) error {
 	return nil
 }
 
-func ExtractStruct(content string) string {
-	re := regexp.MustCompile(`type\s+(\w+)\s+struct\s*{([^}]*)}`)
-	matches := re.FindAllStringSubmatch(content, -1)
+/*
+	func ExtractStruct(content string) string {
+		re := regexp.MustCompile(`type\s+(\w+)\s+struct\s*{([^}]*)}`)
+		matches := re.FindAllStringSubmatch(content, -1)
 
-	for _, match := range matches {
-		if len(match) > 1 {
-			original := match[0]
-			modified, _ := TokenizeStructFields(match[0])
-			content = strings.Replace(content, original, modified, 1)
+		for _, match := range matches {
+			if len(match) > 1 {
+				original := match[0]
+				modified, _ := TokenizeStructFields(match[0])
+				content = strings.Replace(content, original, modified, 1)
+			}
 		}
+		return content
 	}
-	return content
-}
+*/
 
 var structDefinitions = make(map[string]*ast.StructType)
 
