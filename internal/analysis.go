@@ -2,7 +2,6 @@ package analysis
 
 import (
 	"flag"
-	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/printer"
@@ -32,7 +31,7 @@ func Start() error {
 		var err error
 		dir, err = os.Getwd()
 		if err != nil {
-			log.Fatalf("Dir not found: %v", err)
+			log.Printf("Dir not found: %v", err)
 		}
 	} else {
 		dir = *dirFlag
@@ -47,6 +46,8 @@ func Start() error {
 
 func getFiles(dir string) error {
 	var wg sync.WaitGroup
+	errCh := make(chan error, 10)
+
 	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -56,7 +57,9 @@ func getFiles(dir string) error {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				readFile(path)
+				if err := readFile(path); err != nil {
+					errCh <- err
+				}
 			}()
 		}
 
@@ -68,6 +71,12 @@ func getFiles(dir string) error {
 	}
 
 	wg.Wait()
+	close(errCh)
+
+	for e := range errCh {
+		log.Printf("Error processing file: %v", e)
+	}
+
 	return nil
 }
 
@@ -75,7 +84,7 @@ func readFile(path string) error {
 	file, err := os.ReadFile(path)
 	if err != nil {
 		if err.Error() != "EOF" {
-			log.Fatalf("Error opening file: %v", err)
+			log.Printf("Error opening file: %v", err)
 		}
 		return nil
 	}
@@ -136,31 +145,14 @@ func TokenizeStructFields(content string) (string, error) {
 
 		if structType, ok := ts.Type.(*ast.StructType); ok {
 			structDefinitions[ts.Name.Name] = structType
-		} else {
-			typeSizes[ts.Name.Name] = typeSizes[ts.Type.(*ast.Ident).Name]
+			_ = sortFieldsBySize(structType)
+		} else if ident, ok := ts.Type.(*ast.Ident); ok {
+			if size, found := typeSizes[ident.Name]; found {
+				typeSizes[ts.Name.Name] = size
+			}
 		}
 
 		return true
-	})
-
-	ast.Inspect(node, func(n ast.Node) bool {
-		ts, ok := n.(*ast.TypeSpec)
-		if !ok {
-			return true
-		}
-
-		structType, ok := ts.Type.(*ast.StructType)
-		if !ok {
-			return true
-		}
-
-		_ = sortFieldsBySize(structType)
-
-		/*for _, field := range sortedField {
-			fmt.Println(field.Names, field.Comment.Text())
-		}*/
-
-		return false
 	})
 
 	formattedContent := new(strings.Builder)
