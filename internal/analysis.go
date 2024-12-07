@@ -118,28 +118,12 @@ func formatTheWrittenFile(path string) error {
 	return nil
 }
 
-/*
-	func ExtractStruct(content string) string {
-		re := regexp.MustCompile(`type\s+(\w+)\s+struct\s*{([^}]*)}`)
-		matches := re.FindAllStringSubmatch(content, -1)
-
-		for _, match := range matches {
-			if len(match) > 1 {
-				original := match[0]
-				modified, _ := TokenizeStructFields(match[0])
-				content = strings.Replace(content, original, modified, 1)
-			}
-		}
-		return content
-	}
-*/
-
 var structDefinitions = make(map[string]*ast.StructType)
 
 func TokenizeStructFields(content string) (string, error) {
 	fileSet := token.NewFileSet()
 
-	node, err := parser.ParseFile(fileSet, "", content, parser.ParseComments)
+	node, err := parser.ParseFile(fileSet, "", content, parser.AllErrors)
 	if err != nil {
 		return content, err
 	}
