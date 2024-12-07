@@ -154,11 +154,11 @@ func TokenizeStructFields(content string) (string, error) {
 			return true
 		}
 
-		sortedField := sortFieldsBySize(structType)
+		_ = sortFieldsBySize(structType)
 
-		for _, field := range sortedField {
+		/*for _, field := range sortedField {
 			fmt.Println(field.Names, field.Comment.Text())
-		}
+		}*/
 
 		return false
 	})
