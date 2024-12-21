@@ -1,130 +1,20 @@
 package analysis
 
 import (
-	"flag"
 	"go/ast"
 	"go/parser"
 	"go/printer"
 	"go/token"
-	"log"
-	"os"
-	"os/exec"
-	"path/filepath"
 	"sort"
 	"strings"
-	"sync"
 )
 
 type FieldWithComments struct {
 	Names   []*ast.Ident
 	Field   *ast.Field
+	Tag     *ast.BasicLit
 	Doc     *ast.CommentGroup
 	Comment *ast.CommentGroup
-}
-
-func Start() error {
-	dirFlag := flag.String("d", "", "Directory to search for .go files")
-	flag.Parse()
-
-	var dir string
-	if *dirFlag == "" {
-		var err error
-		dir, err = os.Getwd()
-		if err != nil {
-			log.Printf("Dir not found: %v", err)
-		}
-	} else {
-		dir = *dirFlag
-	}
-
-	if err := getFiles(dir); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func getFiles(dir string) error {
-	var wg sync.WaitGroup
-	errCh := make(chan error, 10)
-
-	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if !info.IsDir() && strings.HasSuffix(info.Name(), ".go") && !strings.HasSuffix(info.Name(), "_test.go") {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				if err := readFile(path); err != nil {
-					errCh <- err
-				}
-			}()
-		}
-
-		return nil
-	})
-
-	if err != nil {
-		return err
-	}
-
-	wg.Wait()
-	close(errCh)
-
-	for e := range errCh {
-		log.Printf("Error processing file: %v", e)
-	}
-
-	return nil
-}
-
-func readFile(path string) error {
-	file, err := os.ReadFile(path)
-	if err != nil {
-		if err.Error() != "EOF" {
-			log.Printf("Error opening file: %v", err)
-		}
-		return nil
-	}
-
-	modifiedContent, err := TokenizeStructFields(string(file))
-	if err != nil {
-		return err
-	}
-
-	err = writeFile(path, modifiedContent)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func writeFile(path string, content string) error {
-	content = strings.TrimSpace(content)
-	err := os.WriteFile(path, []byte(content), 0644)
-	if err != nil {
-		return err
-	}
-
-	err = formatTheWrittenFile(path)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func formatTheWrittenFile(path string) error {
-	cmd := exec.Command("gofmt", "-w", path)
-	err := cmd.Run()
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 var structDefinitions = make(map[string]*ast.StructType)
@@ -132,11 +22,12 @@ var structDefinitions = make(map[string]*ast.StructType)
 func TokenizeStructFields(content string) (string, error) {
 	fileSet := token.NewFileSet()
 
-	node, err := parser.ParseFile(fileSet, "", content, parser.AllErrors)
+	node, err := parser.ParseFile(fileSet, "", content, parser.AllErrors|parser.ParseComments)
 	if err != nil {
 		return content, err
 	}
 
+	// Bug is here but I don't know how to fix it
 	ast.Inspect(node, func(n ast.Node) bool {
 		ts, ok := n.(*ast.TypeSpec)
 		if !ok {
@@ -172,6 +63,7 @@ func sortFieldsBySize(structType *ast.StructType) []*FieldWithComments {
 		fieldsWithComments[i] = &FieldWithComments{
 			Names:   field.Names,
 			Field:   field,
+			Tag:     field.Tag,
 			Doc:     field.Doc,
 			Comment: field.Comment,
 		}
@@ -185,12 +77,14 @@ func sortFieldsBySize(structType *ast.StructType) []*FieldWithComments {
 	})
 
 	sortedFields := make([]*ast.Field, len(fieldsWithComments))
-
 	for i, sortedField := range fieldsWithComments {
-		sortedFields[i] = sortedField.Field
-
-		sortedFields[i].Doc = sortedField.Doc
-		sortedFields[i].Comment = sortedField.Comment
+		sortedFields[i] = &ast.Field{
+			Names:   sortedField.Names,
+			Type:    sortedField.Field.Type,
+			Tag:     sortedField.Field.Tag,
+			Doc:     sortedField.Doc,
+			Comment: sortedField.Comment,
+		}
 	}
 
 	structType.Fields.List = sortedFields
